@@ -1,0 +1,255 @@
+﻿@page "/Flappy"
+@rendermode InteractiveServer
+
+<h3 style="text-align:center;">Flappy Bird </h3>
+
+@if (!gameStarted)
+{
+    <div style="text-align:center; margin-top:50px; font-family: monospace;">
+        <p>Select Bird Color:</p>
+        <select @bind="selectedColor" style="font-size:18px; padding:5px;">
+            @foreach (var c in birdColors)
+            {
+                <option value="@c.Value">@c.Key</option>
+            }
+        </select>
+        <br /><br />
+        <button @onclick="StartGameClicked" style="font-size:20px; padding:10px 20px;">Start Game</button>
+    </div>
+}
+else
+{
+    <div @onkeydown="HandleKeyDown" tabindex="0" style="position:relative; margin:auto; border: 2px solid #333; width:400px; height:600px; background:#70c5ce; overflow:hidden; outline:none;">
+        <!-- Bird -->
+        <div style="
+            position:absolute;
+            width:30px; height:30px;
+            background:@selectedColor;
+            border-radius:50%;
+            left:100px;
+            top:@birdTopPx;">
+        </div>
+
+        <!-- Pipes -->
+        @foreach (var pipe in Pipes)
+        {
+            <div style="
+                position:absolute;
+                width:60px;
+                height:@(pipe.TopHeightPx + "px");
+                background:green;
+                left:@pipe.XPx;
+                top:0;">
+            </div>
+            <div style="
+                position:absolute;
+                width:60px;
+                height:@(pipe.BottomHeightPx + "px");
+                background:green;
+                left:@pipe.XPx;
+                bottom:0;">
+            </div>
+        }
+
+        <!-- Ground -->
+        <div style="
+            position:absolute;
+            bottom:0;
+            width:100%;
+            height:40px;
+            background:#ded895;">
+        </div>
+    </div>
+
+    <p style="text-align:center; font-family: monospace; font-size:20px;">
+        Score: @score
+    </p>
+
+    @if (gameOver)
+    {
+        <p style="color:red; text-align:center; font-weight:bold;">
+            Game Over! Press Space to Restart
+        </p>
+    }
+}
+
+@code {
+    // Constants
+    private const int GameWidth = 400;
+    private const int GameHeight = 600;
+    private const int BirdSize = 30;
+    private const double BirdRadius = BirdSize / 2.0;
+    private const double Gravity = 0.6;
+    private const double JumpPower = -10;
+    private const int PipeWidth = 60;
+    private const int PipeGap = 150;
+    private const double PipeSpeed = 2.5;
+    private const int GroundHeight = 40;
+
+    private double birdY = GameHeight / 2;
+    private double birdVelocity = 0;
+
+    private int score = 0;
+    private bool gameOver = false;
+    private bool gameStarted = false;
+
+    private List<Pipe> Pipes = new();
+
+    private System.Diagnostics.Stopwatch stopwatch = new();
+    private double accumulatedTime = 0;
+    private const double FixedDeltaTime = 1.0 / 60.0; // 60 FPS fixed timestep in seconds
+
+    private string selectedColor = "yellow";
+
+    private readonly Dictionary<string, string> birdColors = new()
+    {
+        { "Yellow", "yellow" },
+        { "Red", "red" },
+        { "Blue", "blue" },
+        { "Orange", "orange" },
+        { "Purple", "purple" },
+        { "Pink", "pink" }
+    };
+
+    protected override void OnInitialized()
+    {
+        // Do NOT start game immediately, wait for Start button
+    }
+
+    private void StartGameClicked()
+    {
+        gameStarted = true;
+        StartGame();
+        stopwatch.Start();
+        _ = GameLoopAsync();
+    }
+
+    private async Task GameLoopAsync()
+    {
+        while (true)
+        {
+            if (!gameOver && gameStarted)
+            {
+                double elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+                stopwatch.Restart();
+
+                accumulatedTime += elapsedSeconds;
+                while (accumulatedTime >= FixedDeltaTime)
+                {
+                    UpdateGame(FixedDeltaTime);
+                    accumulatedTime -= FixedDeltaTime;
+                }
+
+                await InvokeAsync(StateHasChanged);
+            }
+            await Task.Delay(10);
+        }
+    }
+
+    private void UpdateGame(double dt)
+    {
+        birdVelocity += Gravity;
+        birdY += birdVelocity;
+
+        for (int i = 0; i < Pipes.Count; i++)
+        {
+            Pipes[i].X -= PipeSpeed;
+        }
+
+        if (Pipes.Count > 0 && Pipes[0].X < -PipeWidth)
+        {
+            Pipes.RemoveAt(0);
+            var rand = new Random();
+            double lastX = Pipes[^1].X;
+            Pipes.Add(new Pipe(lastX + 200, rand.Next(100, GameHeight - GroundHeight - PipeGap - 100)));
+            score++;
+        }
+
+        if (birdY - BirdRadius < 0 || birdY + BirdRadius > GameHeight - GroundHeight)
+        {
+            gameOver = true;
+        }
+
+        foreach (var pipe in Pipes)
+        {
+            if (CircleIntersectsPipe(100 + BirdRadius, birdY + BirdRadius, BirdRadius, pipe))
+            {
+                gameOver = true;
+                break;
+            }
+        }
+    }
+
+    private bool CircleIntersectsPipe(double circleX, double circleY, double radius, Pipe pipe)
+    {
+        if (CircleIntersectsRect(circleX, circleY, radius, pipe.X, 0, PipeWidth, pipe.GapY))
+            return true;
+
+        int bottomY = pipe.GapY + PipeGap;
+        int bottomHeight = GameHeight - GroundHeight - bottomY;
+        if (CircleIntersectsRect(circleX, circleY, radius, pipe.X, bottomY, PipeWidth, bottomHeight))
+            return true;
+
+        return false;
+    }
+
+    private bool CircleIntersectsRect(double cx, double cy, double radius, double rx, double ry, double rw, double rh)
+    {
+        double closestX = Math.Clamp(cx, rx, rx + rw);
+        double closestY = Math.Clamp(cy, ry, ry + rh);
+
+        double dx = cx - closestX;
+        double dy = cy - closestY;
+
+        return (dx * dx + dy * dy) < (radius * radius);
+    }
+
+    private void StartGame()
+    {
+        birdY = GameHeight / 2;
+        birdVelocity = 0;
+        score = 0;
+        gameOver = false;
+
+        Pipes.Clear();
+        var rand = new Random();
+
+        Pipes.Add(new Pipe(GameWidth - PipeWidth, rand.Next(100, GameHeight - GroundHeight - PipeGap - 100)));
+        Pipes.Add(new Pipe(GameWidth + 200, rand.Next(100, GameHeight - GroundHeight - PipeGap - 100)));
+        Pipes.Add(new Pipe(GameWidth + 400, rand.Next(100, GameHeight - GroundHeight - PipeGap - 100)));
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Code == "Space")
+        {
+            if (gameOver)
+            {
+                StartGame();
+            }
+            else if (gameStarted)
+            {
+                birdVelocity = JumpPower;
+            }
+        }
+    }
+
+    private string birdTopPx => $"{birdY}px";
+
+    private class Pipe
+    {
+        public double X;
+        public int GapY;
+
+        public Pipe(double x, int gapY)
+        {
+            X = x;
+            GapY = gapY;
+        }
+
+        public string XPx => $"{X}px";
+
+        public int TopHeightPx => GapY;
+        public int BottomHeightPx => 600 - 40 - GapY - 150;
+    }
+}

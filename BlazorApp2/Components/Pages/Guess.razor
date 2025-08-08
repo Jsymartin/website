@@ -1,0 +1,57 @@
+﻿@page "/guess"
+@rendermode InteractiveServer
+
+<h3>🎯 Guess the Number!</h3>
+
+<p>I've picked a number between <strong>1 and 100</strong>. Try to guess it!</p>
+
+<input type="number" @bind="UserGuess" min="1" max="100" />
+<button @onclick="CheckGuess">Guess</button>
+<button @onclick="ResetGame">Restart</button>
+
+<p>@Message</p>
+<p><strong>Attempts:</strong> @Attempts</p>
+
+@code {
+    private int SecretNumber;
+    private int UserGuess;
+    private string Message = "Make your first guess!";
+    private int Attempts = 0;
+    private Random RandomGenerator = new Random();
+
+    protected override void OnInitialized()
+    {
+        ResetGame();
+    }
+
+    private void CheckGuess()
+    {
+        if (UserGuess < 1 || UserGuess > 100)
+        {
+            Message = "Please enter a number between 1 and 100!";
+            return;
+        }
+
+        Attempts++;
+
+        if (UserGuess == SecretNumber)
+        {
+            Message = $"🎉 Correct! The number was {SecretNumber}. You guessed it in {Attempts} attempts!";
+        }
+        else if (UserGuess < SecretNumber)
+        {
+            Message = "⬆ Too low! Try again.";
+        }
+        else
+        {
+            Message = "⬇ Too high! Try again.";
+        }
+    }
+
+    private void ResetGame()
+    {
+        SecretNumber = RandomGenerator.Next(1, 101);
+        Attempts = 0;
+        Message = "Make your first guess!";
+    }
+}

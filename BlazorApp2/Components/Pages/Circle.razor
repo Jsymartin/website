@@ -1,0 +1,82 @@
+﻿@page "/circle"
+@rendermode InteractiveServer
+
+<style>
+    .container {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        user-select: none;
+    }
+
+    .circle {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        background-color: red;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+    }
+
+    .stats {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 10px;
+        border-radius: 8px;
+        font-family: sans-serif;
+    }
+</style>
+
+<div class="container" @onclick="MissedClick">
+    <div class="stats">
+        <p><strong>Hits:</strong> @Hits</p>
+        <p><strong>Misses:</strong> @Misses</p>
+        <p><strong>Accuracy:</strong> @($"{Accuracy:P1}")</p>
+    </div>
+
+    @if (IsVisible)
+    {
+        <div class="circle" style="top:@TopPx; left:@LeftPx;" @onclick:stopPropagation="true" @onclick="MoveCircle"></div>
+    }
+</div>
+
+@code {
+    private int Top = 300;
+    private int Left = 400;
+    private bool IsVisible = true;
+    private Random rng = new();
+
+    private int Hits = 0;
+    private int Misses = 0;
+
+    private string TopPx => $"{Top}px";
+    private string LeftPx => $"{Left}px";
+
+    private double Accuracy => Hits + Misses == 0 ? 1 : (double)Hits / (Hits + Misses);
+
+    private async Task MoveCircle()
+    {
+        Hits++;
+        IsVisible = false;
+        StateHasChanged();
+
+        await Task.Delay(300); // Disappear briefly
+
+        Top = rng.Next(100, 600);
+        Left = rng.Next(200, 1000); // offset nav bar
+
+        IsVisible = true;
+    }
+
+    private void MissedClick()
+    {
+        if (IsVisible)
+        {
+            Misses++;
+        }
+    }
+}

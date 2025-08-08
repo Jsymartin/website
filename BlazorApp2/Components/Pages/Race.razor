@@ -1,0 +1,165 @@
+﻿@page "/Race"
+@rendermode InteractiveServer
+
+<h3 style="text-align:center;">Racing Car Game</h3>
+
+<div @onkeydown="HandleKeyDown" tabindex="0"
+     style="margin:auto; outline:none; border:2px solid #000; background:#444;
+            width:300px; height:500px; position:relative; overflow:hidden;">
+
+    <!-- Player Car -->
+    <div style="
+        position:absolute;
+        bottom:20px;
+        width:60px;
+        height:100px;
+        background:red;
+        left:@PlayerLeftPx;">
+    </div>
+
+    <!-- Incoming Cars -->
+    @foreach (var car in IncomingCars)
+    {
+        <div style="
+            position:absolute;
+            width:60px;
+            height:85px;
+            background:white;
+            top:@car.YPx;
+            left:@car.LeftPx;">
+        </div>
+    }
+
+    <!-- Lane Lines -->
+    @for (int i = 1; i < 3; i++)
+    {
+        <div style="
+            position:absolute;
+            left:@(i * 100 - 2)px;
+            width:4px;
+            height:100%;
+            background:#bbb;
+            opacity:0.4;">
+        </div>
+    }
+</div>
+
+<p style="text-align:center; font-family:monospace;">Score: @score</p>
+
+@if (gameOver)
+{
+    <p style="text-align:center; color:red; font-weight:bold;">
+        Game Over! Press Space to Restart
+    </p>
+}
+
+@code {
+    private const int LaneWidth = 100;
+    private const int CarWidth = 60;
+    private const int CarHeight = 100;
+    private const int GameWidth = 300;
+    private const int GameHeight = 500;
+    private const int Speed = 4;
+
+    private int playerLane = 1; // 0, 1, or 2 (middle lane by default)
+    private string PlayerLeftPx => $"{playerLane * LaneWidth + (LaneWidth - CarWidth) / 2}px";
+
+    private List<IncomingCar> IncomingCars = new();
+    private System.Timers.Timer? gameTimer;
+    private Random rand = new();
+
+    private int score = 0;
+    private bool gameOver = false;
+
+    protected override void OnInitialized()
+    {
+        StartGame();
+    }
+
+    private void StartGame()
+    {
+        playerLane = 1;
+        score = 0;
+        gameOver = false;
+        IncomingCars.Clear();
+
+        // Add first few cars
+        for (int i = 0; i < 3; i++)
+        {
+            AddNewCar(-i * 200);
+        }
+
+        gameTimer?.Dispose();
+        gameTimer = new System.Timers.Timer(30);
+        gameTimer.Elapsed += GameTick;
+        gameTimer.Start();
+    }
+
+    private void AddNewCar(int y = -CarHeight)
+    {
+        int lane = rand.Next(0, 3);
+        IncomingCars.Add(new IncomingCar
+            {
+                Lane = lane,
+                Y = y
+            });
+    }
+
+    private void GameTick(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        if (gameOver) return;
+
+        for (int i = 0; i < IncomingCars.Count; i++)
+        {
+            IncomingCars[i].Y += Speed;
+        }
+
+        // Remove and add new cars
+        if (IncomingCars.Count > 0 && IncomingCars[0].Y > GameHeight)
+        {
+            IncomingCars.RemoveAt(0);
+            AddNewCar();
+            score++;
+        }
+
+        // Collision detection
+        foreach (var car in IncomingCars)
+        {
+            if (car.Lane == playerLane &&
+                car.Y + CarHeight > GameHeight - CarHeight - 10&&
+                car.Y < GameHeight - 20)
+            {
+                gameOver = true;
+                gameTimer?.Stop();
+            }
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (gameOver && e.Code == "Space")
+        {
+            StartGame();
+            return;
+        }
+
+        if (e.Code == "ArrowLeft" && playerLane > 0)
+        {
+            playerLane--;
+        }
+        else if (e.Code == "ArrowRight" && playerLane < 2)
+        {
+            playerLane++;
+        }
+    }
+
+    private class IncomingCar
+    {
+        public int Lane { get; set; }
+        public int Y { get; set; }
+        public string YPx => $"{Y}px";
+        public string LeftPx => $"{Lane * LaneWidth + (LaneWidth - CarWidth) / 2}px";
+    }
+}

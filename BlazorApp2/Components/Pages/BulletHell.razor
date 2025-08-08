@@ -1,0 +1,63 @@
+﻿@page "/BulletHell"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+<canvas id="gameCanvas" width="800" height="600" style="border:1px solid black;"></canvas>
+
+@code {
+    private DotNetObjectReference<BulletHell>? selfRef;
+    private Timer? gameLoop;
+
+    private List<Bullet> bullets = new();
+    private Player player = new() { X = 400, Y = 550 };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Console.WriteLine("Initializing game...");
+            selfRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("initInput", selfRef);
+
+            gameLoop = new Timer(async _ =>
+            {
+                Update();
+                await Render();
+            }, null, 0, 33); // ~30 FPS
+        }
+    }
+
+    private void Update()
+    {
+        foreach (var b in bullets)
+        {
+            b.Y -= 5;
+        }
+        bullets.RemoveAll(b => b.Y < 0);
+    }
+
+    private async Task Render()
+    {
+        await JS.InvokeVoidAsync("clearCanvas");
+        await JS.InvokeVoidAsync("drawPlayer", player.X, player.Y);
+
+        foreach (var b in bullets)
+        {
+            await JS.InvokeVoidAsync("drawBullet", b.X, b.Y);
+        }
+    }
+
+    [JSInvokable]
+    public void OnKey(string key)
+    {
+        Console.WriteLine("Key pressed: " + key);
+        if (key == "ArrowLeft") player.X -= 10;
+        else if (key == "ArrowRight") player.X += 10;
+        else if (key == " ") bullets.Add(new Bullet { X = player.X, Y = player.Y });
+
+        player.X = Math.Clamp(player.X, 0, 800);
+    }
+
+    public class Bullet { public int X, Y; }
+    public class Player { public int X, Y; }
+}

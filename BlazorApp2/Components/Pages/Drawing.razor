@@ -1,0 +1,83 @@
+﻿@page "/drawing"
+@rendermode InteractiveServer                                                                    
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<canvas id="drawingCanvas" width="500" height="500" style="border:1px solid black; touch-action:none;"
+        @onmousedown="StartDrawing" @onmouseup="StopDrawing" @onmouseleave="StopDrawing" @onmousemove="Draw"></canvas>
+
+<button @onclick="ClearCanvas">Clear</button>
+<button @onclick="ToggleEraser">Toggle Eraser</button>
+
+@code {
+    private bool isDrawing = false;
+    private bool isErasing = false;
+
+    private async Task StartDrawing(MouseEventArgs e)
+    {
+        isDrawing = true;
+        await JS.InvokeVoidAsync("startDrawing", e.OffsetX, e.OffsetY, isErasing);
+    }
+
+    private async Task StopDrawing(MouseEventArgs e)
+    {
+        isDrawing = false;
+        await JS.InvokeVoidAsync("stopDrawing");
+    }   
+
+    private async Task Draw(MouseEventArgs e)
+    {
+        if (isDrawing)
+        {
+            await JS.InvokeVoidAsync("draw", e.OffsetX, e.OffsetY, isErasing);
+        }
+    }
+
+    private async Task ClearCanvas()
+    {
+        await JS.InvokeVoidAsync("clearCanvas");
+    }
+
+    private void ToggleEraser()
+    {
+        isErasing = !isErasing;
+    }
+}
+
+<script>
+    let canvas, ctx, drawing = false, erasing = false;
+    document.addEventListener("DOMContentLoaded", () => {
+        canvas = document.getElementById("drawingCanvas");
+        ctx = canvas.getContext("2d");
+        ctx.lineWidth = 5;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "black";
+    });
+
+    window.startDrawing = (x, y, erase) => {
+        drawing = true;
+        erasing = erase;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    window.draw = (x, y, erase) => {
+        if (drawing) {
+            if (erase) {
+                ctx.clearRect(x - 5, y - 5, 10, 10);
+            } else {
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+        }
+    };
+
+    window.stopDrawing = () => {
+        drawing = false;
+        ctx.beginPath();
+    };
+
+    window.clearCanvas = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+</script>

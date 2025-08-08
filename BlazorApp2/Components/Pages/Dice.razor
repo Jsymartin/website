@@ -1,0 +1,20 @@
+﻿@page "/diceroller"
+@rendermode InteractiveServer
+<h3>Dice Roller</h3>
+
+<button class="btn btn-primary" @onclick="RollDice">Roll the Dice</button>
+
+@if (RollResult > 0)
+{
+    <p class="mt-3"><strong>You rolled:</strong> @RollResult</p>
+}
+
+@code {
+    private int RollResult = 0;
+
+    private void RollDice()
+    {
+        var random = new Random();
+        RollResult = random.Next(1, 7); // Generates number between 1 and 6
+    }
+}

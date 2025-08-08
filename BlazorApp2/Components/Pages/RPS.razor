@@ -1,0 +1,50 @@
+﻿@page "/rps"
+
+<h3>Rock Paper Scissors</h3>
+@rendermode InteractiveServer
+
+<p>Choose your move:</p>
+
+<div class="btn-group mb-3">
+    <button class="btn btn-outline-primary" @onclick="@(() => PlayGame("Rock"))">Rock</button>
+    <button class="btn btn-outline-primary" @onclick="@(() => PlayGame("Paper"))">Paper</button>
+    <button class="btn btn-outline-primary" @onclick="@(() => PlayGame("Scissors"))">Scissors</button>
+</div>
+
+@if (!string.IsNullOrEmpty(PlayerChoice))
+{
+    <p><strong>You chose:</strong> @PlayerChoice</p>
+    <p><strong>Computer chose:</strong> @ComputerChoice</p>
+    <p><strong>Result:</strong> @Result</p>
+}
+
+@code {
+    private string? PlayerChoice;
+    private string? ComputerChoice;
+    private string? Result;
+
+    private void PlayGame(string playerMove)
+    {
+        PlayerChoice = playerMove;
+
+        var options = new[] { "Rock", "Paper", "Scissors" };
+        var random = new Random();
+        ComputerChoice = options[random.Next(0, options.Length)];
+
+        Result = GetWinner(PlayerChoice, ComputerChoice);
+    }
+
+    private string GetWinner(string player, string computer)
+    {
+        if (player == computer)
+            return "It's a tie!";
+
+        return (player, computer) switch
+        {
+            ("Rock", "Scissors") => "You win!",
+            ("Paper", "Rock") => "You win!",
+            ("Scissors", "Paper") => "You win!",
+            _ => "You lose!"
+        };
+    }
+}
